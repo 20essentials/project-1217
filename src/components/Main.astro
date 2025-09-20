@@ -1,0 +1,143 @@
+<section class='container-mouse-blur'>
+  <canvas></canvas>
+  <aside class='over-canvas'></aside>
+</section>
+
+<style>
+  .container-mouse-blur {
+    width: 100%;
+    height: 100vh;
+    position: fixed;
+  }
+
+  canvas,
+  .over-canvas {
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    position: absolute;
+  }
+
+  .over-canvas {
+    z-index: 5;
+    background-color: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(2vmax);
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  const $ = <T extends Element = HTMLElement>(el: string) =>
+    document.querySelector<T>(el) as T;
+  const $canvas = $<HTMLCanvasElement>('canvas');
+  const ctx = $canvas.getContext('2d') as CanvasRenderingContext2D;
+  let widthCanvas = ($canvas.width = window.innerWidth);
+  let heightCanvas = ($canvas.height = window.innerHeight);
+  let mouse: { x?: number; y?: number } = { x: undefined, y: undefined };
+  let banderaColor = true;
+  let blackColor = 'rgba(0,0,0,0.1)';
+  let whiteColor = 'rgba(255,255,255,0.1)';
+  let colorDevice = blackColor;
+
+  $canvas.addEventListener('dblclick', e => {
+    colorDevice = banderaColor ? whiteColor : blackColor;
+    banderaColor = !banderaColor;
+  });
+
+  class Particle {
+    x: number;
+    y: number;
+    size: number;
+    speed: number;
+    angle: number;
+    h: number;
+    hue: number;
+    color: string;
+    ttl: number;
+    time: number;
+
+    constructor() {
+      this.x = mouse.x! + getRandomInt(-30, 30);
+      this.y = mouse.y! + getRandomInt(-30, 30);
+      this.size = getRandomInt(2, 3);
+      this.speed = getRandomInt(2, 3);
+      this.angle = getRandomInt(1, 360);
+      this.h = this.y / (heightCanvas / 360);
+      this.hue = getRandomInt(this.h - 20, this.h - 20);
+      this.ttl = 180;
+      this.time = 0;
+      this.color = `hsla(${this.hue},100%,50%)`;
+    }
+
+    draw() {
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    update() {
+      if (this.time <= this.ttl) {
+        let progress = 1 - (this.ttl - this.time) / this.time;
+        let alpha = progress > 0.7 ? 1 - progress : 1;
+        this.color = `hsla(${this.hue},100%,50%, ${alpha})`;
+
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.angle += Math.random() * 0.8 - 0.4;
+      }
+      this.time++;
+    }
+  }
+
+  let particles: Particle[] = [];
+
+  function drawCanvas() {
+    ctx.fillStyle = colorDevice;
+    ctx.fillRect(0, 0, widthCanvas, heightCanvas);
+    let particlesStillAlive: Particle[] = [];
+    particles.forEach(particle => {
+      particle.draw();
+      particle.update();
+      if (particle.time <= particle.ttl) {
+        particlesStillAlive.push(particle);
+      }
+    });
+
+    particles = particlesStillAlive;
+    requestAnimationFrame(drawCanvas);
+  }
+
+  function getRandomInt(min: number, max: number) {
+    return ~~(Math.random() * (max - min) + min);
+  }
+
+  function reset() {
+    widthCanvas = $canvas.width = window.innerWidth;
+    heightCanvas = $canvas.height = window.innerHeight;
+  }
+
+  function mouseMove(event: MouseEvent | TouchEvent) {
+    const { clientX, clientY } =
+      event instanceof TouchEvent ? event.touches[0] : event;
+    mouse.x = clientX;
+    mouse.y = clientY;
+    const numOfParticles = window.innerWidth <= 1111 ? 2 : 20;
+    for (let i = 0; i < numOfParticles; i++) {
+      particles.push(new Particle());
+    }
+  }
+
+  function mouseOut() {
+    mouse.x = undefined;
+    mouse.y = undefined;
+  }
+
+  drawCanvas();
+  document.addEventListener('mousemove', mouseMove);
+  document.addEventListener('touchmove', mouseMove);
+  document.addEventListener('mouseout', mouseOut);
+  document.addEventListener('touchend', mouseOut);
+  window.addEventListener('resize', reset);
+</script>
